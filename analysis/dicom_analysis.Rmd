@@ -1,0 +1,276 @@
+---
+title: "Fingerprinting Analysis"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+An initial view of the data show various ways to fingerprint the dicom pixel array based on included metadata. Missing values were filtered out to make figures.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r, echo=FALSE, cache=TRUE}
+library(magrittr)
+
+DATA_DIR <- ifelse(Sys.getenv("DATA_DIR") == "", "./misc/data", Sys.getenv("DATA_DIR"))
+
+df <- read.csv(file.path(DATA_DIR, "dicom_metadata_df.csv")) %>%
+  dplyr::left_join(read.csv(file.path(DATA_DIR, "dicom_proc_stats_df.csv")), by = "X")
+
+plot_title <- function(...) {
+  title <- do.call(
+    paste,
+    lapply(list(...), function(a)
+      gsub("X\\.([0-9]+)\\.\\.([0-9]+)\\.\\.(.*)", "(\\1, \\2) \\3", a) %>%
+        gsub("\\.", " ", .)
+    )
+  )
+
+  stringr::str_to_title(title)
+}
+
+create_scatter_plot <- function(dataset, arg_1, arg_2, arg_3) {
+  dplyr::filter(dataset, .data[[arg_3]] != "") %>%
+    ggplot(aes(.data[[arg_1]], .data[[arg_2]], color = .data[[arg_3]])) +
+      geom_point() +
+      ggtitle(plot_title(arg_1,"by", arg_2)) +
+      labs(color = plot_title(arg_3)) +
+      xlab(plot_title(arg_1)) +
+      ylab(plot_title(arg_2))
+}
+
+summary_table <- function(dataset, group_variable) {
+  dataset %>%
+    dplyr::filter(.data[[group_variable]] != "") %>%
+    dplyr::group_by(.data[[group_variable]]) %>%
+    dplyr::summarise(
+      N = dplyr::n(),
+      Raw.mean = mean(Raw.mean),
+      Rescale.mean = mean(Rescale.mean, na.rm = TRUE),
+      Win.mean = mean(Win.mean),
+      VOI.mean = mean(VOI.mean),
+    ) %>%
+    dplyr::arrange(-N)
+}
+```
+
+## Manufacturer Model Name
+
+Looking at the dicom attribute `(0008, 1090)` or Manufacturer model name. The variable is used as the color fill for scatter plots of pixel array mean and standard deviation. The plot is split according to successive LUT pixel data transformations. More information can be found [here](https://pydicom.github.io/pydicom/dev/reference/handlers.html#). The greatest separability can be seen after applying the windowing operation.
+
+```{r, echo=FALSE, out.width="50%"}
+library(ggplot2)
+library(magrittr)
+
+fill_variable <- "X.0008..1090..Manufacturer.s.Model.Name"
+
+df %>% create_scatter_plot("Rescale.mean", "Rescale.variance", fill_variable)
+df %>% create_scatter_plot("Raw.mean", "Raw.variance", fill_variable)
+df %>% create_scatter_plot("Win.mean", "Win.variance", fill_variable)
+df %>% create_scatter_plot("VOI.mean", "VOI.variance", fill_variable)
+```
+
+The limited data for the `Rescale` transformation is due to there being only two cases with specified `(0028,1052)` Rescale Intercept and `(0028,1053)` Rescale Slope values and a non empty manufacturer model name. Mean and Variance give better linear separability than other statistics of the pixel array. Below are histograms of both various distribution statistics for the pixel arrays. There is considerably more overlap of different manufacturer models in regards to array `skewness` and `kurtosis` than `mean` and `variance`.
+
+```{r, echo=FALSE, out.width="50%"}
+library(ggplot2)
+
+plot_variable <- function(variable) {
+  ggplot(dplyr::filter(df, .data[[fill_variable]] != ""), aes(.data[[variable]], fill = .data[[fill_variable]])) +
+    geom_histogram() +
+    ggtitle(plot_title(variable)) +
+    labs(fill = plot_title(fill_variable))
+}
+
+plot_variable("Raw.mean")
+plot_variable("Raw.variance")
+plot_variable("Raw.skewness")
+plot_variable("Raw.kurtosis")
+```
+
+A table of the image counts by model name shows an unequal distribution of X-rays by manufacturer models. The values for mean raw pixel value and VOI raw pixel value indicate the presence of a `noop`.
+
+```{r, echo=FALSE, results="asis"}
+library(knitr)
+
+df %>% summary_table(fill_variable) %>% kable(caption = "Manufacturer Model Name")
+```
+
+## Manufacturer
+
+Looking at `(0008, 0070)` shows similar results. Interestingly, only two manufacturers (`FUJIFILM Corporation` and `AGFA`) have specified rescale intercept/slope values.  There appears to be better separability in comparison to `(0008, 1090) Manufacturer Model Name` especially when viewing the windowed frame (values for  `(0028,1050) Window Center` and `(0028,1051) Window Width` specified).
+
+```{r, echo=FALSE, out.width="50%"}
+library(ggplot2)
+library(magrittr)
+
+fill_variable <- "X.0008..0070..Manufacturer"
+
+df %>% create_scatter_plot("Rescale.mean", "Rescale.variance", fill_variable)
+df %>% create_scatter_plot("Raw.mean", "Raw.variance", fill_variable)
+df %>% create_scatter_plot("Win.mean", "Win.variance", fill_variable)
+df %>% create_scatter_plot("VOI.mean", "VOI.variance", fill_variable)
+```
+
+There is overlap with manufacturer model name and a similarly uneven distribution of counts.
+
+```{r, echo=FALSE, results="asis"}
+library(knitr)
+
+df %>% summary_table(fill_variable) %>% kable(caption = "Manufacturer")
+```
+
+## Clinical Trial Site ID
+
+```{r, echo=FALSE, cache=TRUE}
+chi <- chisq.test(df$X.0012..0030..Clinical.Trial.Site.ID, df$X.0008..0070..Manufacturer)
+```
+
+Looking at other possible partitions of the pixel arrays, the trial site ID appears to have similar linear separability as the X-ray manufacturer.  A contingency table of both variables gives evidence of the same effect as seen in the low probability of independence (**Chi-squared**: `r chi$statistic`).  This intuitively makes sense as clinical sites would most likely use a single manufacturer.
+
+```{r, echo=FALSE, out.width="50%"}
+library(ggplot2)
+library(magrittr)
+
+fill_variable <- "X.0012..0030..Clinical.Trial.Site.ID"
+
+df %>% create_scatter_plot("Rescale.mean", "Rescale.variance", fill_variable)
+df %>% create_scatter_plot("Raw.mean", "Raw.variance", fill_variable)
+df %>% create_scatter_plot("Win.mean", "Win.variance", fill_variable)
+df %>% create_scatter_plot("VOI.mean", "VOI.variance", fill_variable)
+```
+
+```{r, echo=FALSE, results="asis"}
+library(knitr)
+
+df %>% summary_table(fill_variable) %>% kable(caption = "Clinical Trial Site ID")
+```
+
+## Manufacturer By ClinicalTrial Site ID
+
+Due to the degree of overlap between clinical trial site and the image capture manufacturer, the combination of the two variables does not add a significant increase in the ability to fingerprint.
+
+```{r, echo=FALSE, out.width="50%"}
+library(ggplot2)
+library(magrittr)
+
+df_combined <- df %>%
+  dplyr::filter(X.0008..0070..Manufacturer != "", X.0012..0030..Clinical.Trial.Site.ID != "") %>%
+  dplyr::mutate(
+    manufacturer_by_site = paste0(X.0008..0070..Manufacturer, "-", X.0012..0030..Clinical.Trial.Site.ID)
+    )
+
+fill_variable <- "manufacturer_by_site"
+
+df_combined %>% create_scatter_plot("Rescale.mean", "Rescale.variance", fill_variable)
+df_combined %>% create_scatter_plot("Raw.mean", "Raw.variance", fill_variable)
+df_combined %>% create_scatter_plot("Win.mean", "Win.variance", fill_variable)
+df_combined %>% create_scatter_plot("VOI.mean", "VOI.variance", fill_variable)
+```
+
+```{r, echo=FALSE, results="asis"}
+library(knitr)
+
+df_combined %>% summary_table(fill_variable) %>% kable(caption = "Manufacturer Clinical Trial Site ID")
+```
+
+## Device Serial Number
+
+There are no cases with a specified `Rescale` values and an associated device serial number.  The pixel data seems to indicate some degree of separability, although not necessarily linear.  Again this is most apparent when a `Window` value is included.
+
+```{r, echo=FALSE, out.width="50%"}
+library(ggplot2)
+library(magrittr)
+
+fill_variable <- "X.0018..1000..Device.Serial.Number"
+
+df %>% create_scatter_plot("Rescale.mean", "Rescale.variance", fill_variable)
+df %>% create_scatter_plot("Raw.mean", "Raw.variance", fill_variable)
+df %>% create_scatter_plot("Win.mean", "Win.variance", fill_variable)
+df %>% create_scatter_plot("VOI.mean", "VOI.variance", fill_variable)
+```
+
+```{r, echo=FALSE, results="asis"}
+library(knitr)
+
+df %>% summary_table(fill_variable) %>% kable(caption = "Device Serial Number")
+```
+
+## SVM Analysis
+
+To calculate the performance of separability, an SVM model was ran using the windowed pixel values to predict either manufacturer or device ID class. The data is subset by valid windowing values but the analysis holds for raw pixels.  Calculating the accuracy from a test/train split gives some indication on linear separability (or separability using another kernel) as a proxy for fingerprint potential.
+
+```{r, echo=FALSE, cache=TRUE, out.width="50%"}
+set.seed(123)
+
+create_test_train <- function(variable) {
+  df_filtered = df %>%
+    dplyr::filter(.data[[variable]] != "",!is.na(Win.mean)) %>%
+    dplyr::mutate(response = as.factor(.data[[variable]]))
+
+  partition <-
+    sample(2,
+           nrow(df_filtered),
+           replace = TRUE,
+           prob = c(0.7, 0.3))
+  train <- df_filtered[partition == 1,]
+  test <- df_filtered[partition == 2,]
+
+  list(train = train,
+       test  = test,
+       df    = df_filtered)
+}
+
+calc_accuracy <- function(actual_values, predicted_values) {
+  table_svm <- table(actual_values, predicted_values)
+  sum(diag(table_svm)) / sum(table_svm)
+}
+
+manufacturer_split <-
+  create_test_train("X.0008..0070..Manufacturer")
+device_split <-
+  create_test_train("X.0018..1000..Device.Serial.Number")
+
+svm_outputs <- lapply(list(manufacturer_split, device_split),
+                      function(model) {
+                        classifier <-
+                          e1071::svm(
+                            formula = response ~ Win.variance + Win.mean,
+                            data = model$train,
+                            type = 'C-classification',
+                            kernel = 'radial',
+                            na.rm = TRUE
+                          )
+
+                        predicted_values <- predict(
+                          classifier,
+                          newdata = dplyr::select(model$test, Win.variance, Win.mean),
+                          type    = "response"
+                        )
+
+                        list(
+                          classifier = classifier,
+                          accuracy = calc_accuracy(model$test$response,
+                                                   predicted_values)
+                        )
+                      })
+
+names(svm_outputs) <- c("manufacturer", "device")
+
+plot(
+  svm_outputs$manufacturer$classifier,
+  dplyr::select(manufacturer_split$train, response, Win.variance, Win.mean)
+)
+
+plot(
+  svm_outputs$device$classifier,
+  dplyr::select(device_split$train, response, Win.variance, Win.mean)
+)
+```
+
+### Model Accuracies
+
+**Manufacturer Accuracy**: `r svm_outputs$manufacturer$accuracy`
+**Device Accuracy**: `r svm_outputs$device$accuracy`
