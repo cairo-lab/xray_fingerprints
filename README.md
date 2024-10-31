@@ -1,7 +1,7 @@
-# The Risk of Shortcutting in Deep Learning Algorithms
+# The Risk of Shortcutting in Deep Learning Algorithms in Medical Research
 
 This repository contains the code to reproduce the experiments of the paper "he Risk of Shortcutting in Deep Learning 
-Algorithms."
+Algorithms in Medical Research."
 
 ## Abstract
 While deep learning (DL) offers the compelling ability to detect details beyond human vision, its black-box nature makes
