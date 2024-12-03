@@ -44,10 +44,10 @@ The GCP structure is:
 ## Processing the OAI structured data
 
 The OsteoArthritis Initiative (OAI) data set that this work is based on has countless uses. The CAIRO lab has a separate
-repo created to contain code for pre-processing this data. Please see https://github.com/cairo-lab/OAI, and note where
-to decompress the OAU data in the project README.md. The OAI data can be downloaded from https://nda.nih.gov/oai. 
+repo created to contain code for pre-processing this data. Please see https://github.com/cairo-lab/pyOAI, and note where
+to decompress the OAI data in the project README.md. The OAI data can be downloaded from https://nda.nih.gov/oai. 
 Conversion of the SAS datafiles can be done by invoking the 
-["Convert SAS to Dataframes"](https://github.com/cairo-lab/OAI/blob/main/notebooks/Convert%20SAS%20to%20Dataframes.ipynb) 
+["Convert SAS to Dataframes"](https://github.com/cairo-lab/pyOAI/blob/main/notebooks/Convert%20SAS%20to%20Dataframes.ipynb) 
 Python Jupyter notebook, this cleans and converts the original data into Pandas dataframes and stores them in Parquet
 files (see the OAI code repo for full reasoning).
 
@@ -85,7 +85,7 @@ From this preprocessing you will create the following dataframes:
 ## Cohort Creation
 
 At this stage, all code is part of this repo (xray_fingerprints). However, it still uses a set of utility functions from
-the CAIRO labs OAI code repo. On UNIX like platforms is important to create a soft-link to this library. In the notebook
+the CAIRO labs pyOAI code repo. On UNIX like platforms is important to create a soft-link to this library. In the notebook
 directory (BASE_DIR + /code/xray_fingerprints/notebooks), run the following. 
 
 `ln -s ../../OAI/notebooks/OAI_Utilities.py`
