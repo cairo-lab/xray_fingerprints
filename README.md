@@ -122,6 +122,8 @@ At this stage, both the images and modeling targets are ready. It is time for th
 
 # Experiments
 
+# Credit
+This work is another product of the [CAIRO Lab](https://cairo-lab.org).
 
 
 
