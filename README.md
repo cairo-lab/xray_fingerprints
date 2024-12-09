@@ -1,7 +1,7 @@
 # The Risk of Shortcutting in Deep Learning Algorithms in Medical Research
 
-This repository contains the code to reproduce the experiments of the paper "he Risk of Shortcutting in Deep Learning 
-Algorithms in Medical Research."
+This repository contains the code to reproduce the experiments of the paper ["The Risk of Shortcutting in Deep Learning 
+Algorithms in Medical Research."](https://www.nature.com/articles/s41598-024-79838-6)
 
 ## Abstract
 While deep learning (DL) offers the compelling ability to detect details beyond human vision, its black-box nature makes
@@ -125,6 +125,15 @@ At this stage, both the images and modeling targets are ready. It is time for th
 # Credit
 This work is another product of the [CAIRO Lab](https://cairo-lab.org).
 
+If you find our work or any of our materials useful, please cite our paper:
+
+>@ARTICLE{Hill2024-nf,
+>  title     = "The risk of shortcutting in deep learning algorithms for medical imaging research",
+>  author    = "Hill, Brandon G and Koback, Frances L and Schilling, Peter L",
+>  journal   = "Sci. Rep.", publisher = "Nature Publishing Group",
+>  volume    =  14, number    =  1, pages     = "1--7",
+>  month     =  nov, year      =  2024,
+>}
 
 
 
